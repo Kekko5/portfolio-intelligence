@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 from ..models.price_data import PriceData
 from ..models.asset_info import AssetInfo
+from ..exceptions import TickerNotFoundError, DataFetchError
 
 
 def fetch_historical_prices(ticker: str, period: str = "1y") -> list[PriceData]:
@@ -16,13 +17,13 @@ def fetch_historical_prices(ticker: str, period: str = "1y") -> list[PriceData]:
         Lista di PriceData, uno per ogni giorno
     
     Raises:
-        ValueError: Se il ticker non esiste o non ha dati
+        TickerNotFoundError: Se il ticker non esiste o non ha dati
     """
     asset = yf.Ticker(ticker)
     hist = asset.history(period=period)
     
     if hist.empty:
-        raise ValueError(f"Nessun dato trovato per il ticker: {ticker}")
+        raise TickerNotFoundError(ticker)
     
     price_data_list = []
     for date, row in hist.iterrows():
@@ -49,13 +50,16 @@ def fetch_asset_info(ticker: str) -> AssetInfo:
         AssetInfo con i metadati dell'asset
     
     Raises:
-        ValueError: Se il ticker non esiste
+        TickerNotFoundError: Se il ticker non esiste
     """
-    
+
     asset = yf.Ticker(ticker)
     info = asset.info
-    if not info:
-        raise ValueError(f"Nessun dato trovato per il ticker: {ticker}")
+    
+    # Verifica che ci siano dati reali, non solo il dizionario vuoto di yfinance
+    if not info or info.get('longName') is None:
+        raise TickerNotFoundError(ticker)
+    
     asset_info = AssetInfo(
         ticker=ticker,
         name=info.get('longName', 'N/A'),
