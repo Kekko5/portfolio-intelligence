@@ -1,8 +1,10 @@
 import yfinance as yf
 import pandas as pd
+from ..models.price_data import PriceData
+from ..models.asset_info import AssetInfo
 
 
-def fetch_historical_prices(ticker: str, period: str = "1y") -> pd.DataFrame:
+def fetch_historical_prices(ticker: str, period: str = "1y") -> list[PriceData]:
     """
     Recupera i prezzi storici di un asset da Yahoo Finance.
     
@@ -11,7 +13,7 @@ def fetch_historical_prices(ticker: str, period: str = "1y") -> pd.DataFrame:
         period: Periodo di tempo (es. "1mo", "3mo", "1y", "5y")
     
     Returns:
-        DataFrame con colonne: Open, High, Low, Close, Volume
+        Lista di PriceData, uno per ogni giorno
     
     Raises:
         ValueError: Se il ticker non esiste o non ha dati
@@ -22,4 +24,42 @@ def fetch_historical_prices(ticker: str, period: str = "1y") -> pd.DataFrame:
     if hist.empty:
         raise ValueError(f"Nessun dato trovato per il ticker: {ticker}")
     
-    return hist
+    price_data_list = []
+    for date, row in hist.iterrows():
+        price_data = PriceData(
+            date=date.to_pydatetime(),
+            open=row['Open'],
+            high=row['High'],
+            low=row['Low'],
+            close=row['Close'],
+            volume=row['Volume']
+        )
+        price_data_list.append(price_data)
+    return price_data_list
+
+
+def fetch_asset_info(ticker: str) -> AssetInfo:
+    """
+    Recupera i metadati di un asset da Yahoo Finance.
+    
+    Args:
+        ticker: Simbolo dell'asset
+    
+    Returns:
+        AssetInfo con i metadati dell'asset
+    
+    Raises:
+        ValueError: Se il ticker non esiste
+    """
+    
+    asset = yf.Ticker(ticker)
+    info = asset.info
+    if not info:
+        raise ValueError(f"Nessun dato trovato per il ticker: {ticker}")
+    asset_info = AssetInfo(
+        ticker=ticker,
+        name=info.get('longName', 'N/A'),
+        currency=info.get('currency', 'N/A'),
+        exchange=info.get('exchange', 'N/A')
+    )
+    return asset_info
