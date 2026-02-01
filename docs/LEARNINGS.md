@@ -8,25 +8,88 @@ Documenta qui cosa impari in ogni sprint. Questo file è per te, scrivilo come t
 
 ### Dataclasses
 *Cosa sono e quando usarle:*
-<!-- Scrivi qui -->
+Le dataclasses sono una feature di Python (dal 3.7+) che semplifica la creazione di classi utilizzate principalmente per contenere dati. Con il decorator `@dataclass`, Python genera automaticamente metodi come `__init__()`, `__repr__()`, `__eq__()` senza doverli scrivere manualmente.
+
+**Quando usarle:**
+- Per modellare entità di dominio (Asset, Portfolio, PriceData)
+- Quando hai una classe con molti attributi ma poca logica
+- Quando vuoi immutabilità (usando `frozen=True`)
+- Per avere type hints puliti e autocomplete nell'IDE
 
 *Esempio pratico:*
 ```python
-# Il tuo codice commentato
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class Asset:
+    """Rappresenta un asset finanziario nel portafoglio"""
+    ticker: str          # es. "VWCE.MI"
+    quantity: float      # numero di quote possedute
+    avg_price: float     # prezzo medio di carico
+    currency: str = "EUR"  # default value
+    
+    def total_value(self) -> float:
+        """Calcola il valore totale investito"""
+        return self.quantity * self.avg_price
+
+# Vantaggi: __init__, __repr__, __eq__ generati automaticamente
+asset = Asset("VWCE.MI", 100, 85.50)
+print(asset)  # Asset(ticker='VWCE.MI', quantity=100, avg_price=85.5, currency='EUR')
 ```
 
 ### Virtual Environment
 *Perché è importante:*
-<!-- Scrivi qui -->
+Il virtual environment isola le dipendenze del progetto dall'installazione globale di Python. Questo previene conflitti tra versioni di librerie diverse per progetti diversi e rende il progetto riproducibile su altre macchine.
+
+**Benefici chiave:**
+- Ogni progetto ha le sue dipendenze indipendenti
+- `requirements.txt` documenta esattamente cosa serve
+- Evita "funziona sul mio PC" - riproducibilità garantita
+- Puoi testare diverse versioni di librerie senza rompe re altri progetti
 
 *Comandi chiave:*
 ```bash
-# I comandi che usi
+# Creare il virtual environment
+python3 -m venv venv
+
+# Attivare (macOS/Linux)
+source venv/bin/activate
+
+# Attivare (Windows)
+venv\Scripts\activate
+
+# Installare dipendenze
+pip install -r requirements.txt
+
+# Salvare dipendenze correnti
+pip freeze > requirements.txt
+
+# Disattivare
+deactivate
 ```
 
 ### Git Workflow
 *Cosa ho imparato:*
-<!-- Scrivi qui -->
+**Workflow base per questo progetto:**
+1. Creare repo su GitHub e clonarlo localmente
+2. Lavorare su feature/fix in locale
+3. Commit frequenti con messaggi descrittivi
+4. Push al termine di ogni sprint
+
+**Best practices applicate:**
+- `.gitignore` per escludere `venv/`, `__pycache__/`, file IDE
+- Messaggi di commit descrittivi: "Add Asset dataclass with tests"
+- Commit atomici: ogni commit rappresenta un'unità logica completa
+- File `__init__.py` in ogni package per struttura Python corretta
+
+**Comandi essenziali usati:**
+```bash
+git init
+git add .
+git commit -m "Sprint 1 complete: setup + data models"
+git push origin main
+```
 
 ---
 
