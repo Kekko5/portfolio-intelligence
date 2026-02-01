@@ -97,14 +97,92 @@ git push origin main
 
 ### API Integration
 *Pattern usati:*
-<!-- Scrivi qui -->
+**yfinance library** per interfacciarsi con Yahoo Finance.
+
+**Pattern implementato:**
+1. **Fetcher separato**: `yahoo_fetcher.py` contiene tutte le funzioni per recuperare dati esterni
+2. **Conversione immediata**: output di yfinance (DataFrame pandas) → convertito subito in dataclass custom
+3. **Type hints espliciti**: ogni funzione dichiara input/output precisi
+4. **Separazione responsabilità**: `fetch_historical_prices()` per dati storici, `fetch_asset_info()` per metadati
+
+*Esempio pratico:*
+```python
+import yfinance as yf
+from ..models.price_data import PriceData
+
+def fetch_historical_prices(ticker: str, period: str = "1y") -> list[PriceData]:
+    """Recupera prezzi storici da Yahoo Finance"""
+    asset = yf.Ticker(ticker)
+    hist = asset.history(period=period)
+    
+    if hist.empty:
+        raise TickerNotFoundError(ticker)
+    
+    # Conversione DataFrame → list[PriceData]
+    price_data_list = []
+    for date, row in hist.iterrows():
+        price_data = PriceData(
+            date=date.to_pydatetime(),
+            open=row['Open'],
+            close=row['Close'],
+            # ... altri campi
+        )
+        price_data_list.append(price_data)
+    return price_data_list
+```
+
+**Vantaggi:**
+- Disaccoppiamento: il resto del codice non dipende da pandas/yfinance
+- Testabilità: posso mockare facilmente il fetcher
+- Type safety: IDE può controllare i tipi
 
 ### Error Handling
 *Strategia scelta:*
-<!-- Scrivi qui -->
+**Custom exceptions** specifiche per il data layer, organizzate in gerarchia.
+
+**Principi applicati:**
+1. **Gerarchia**: tutte le eccezioni ereditano da `DataError` base
+2. **Semantica chiara**: nome dell'eccezione descrive il problema (`TickerNotFoundError`, `DataFetchError`)
+3. **Informazioni contestuali**: ogni eccezione porta dati utili (ticker, messaggio, eccezione originale)
+4. **Fail-fast**: validazione immediata (es. `hist.empty` → raise subito)
 
 *Custom exceptions create:*
-<!-- Scrivi qui -->
+```python
+# src/data/exceptions.py
+
+class DataError(Exception):
+    """Classe base per errori del data layer"""
+    pass
+
+class TickerNotFoundError(DataError):
+    """Ticker non esiste o non ha dati"""
+    def __init__(self, ticker: str):
+        self.ticker = ticker
+        super().__init__(f"Ticker non trovato: {ticker}")
+
+class DataFetchError(DataError):
+    """Errore nel recupero dati (rete, API, etc)"""
+    def __init__(self, message: str, original_error: Exception | None = None):
+        self.message = message
+        self.original_error = original_error
+        super().__init__(message)
+```
+
+**Perché custom exceptions:**
+- Catch selettivo: posso gestire `TickerNotFoundError` diversamente da errori generici
+- Debugging: stack trace più chiaro
+- Documentazione: il tipo di eccezione comunica l'errore
+- Testabilità: posso verificare che il codice sollevi l'eccezione giusta
+
+**Uso pratico:**
+```python
+try:
+    prices = fetch_historical_prices("INVALID_TICKER")
+except TickerNotFoundError as e:
+    print(f"Ticker {e.ticker} non valido")
+except DataFetchError as e:
+    print(f"Errore rete: {e.message}")
+```
 
 ---
 
