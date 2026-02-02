@@ -190,25 +190,125 @@ except DataFetchError as e:
 
 ### Rendimento
 *Formula rendimento semplice:*
-<!-- Formula matematica + intuizione -->
+$$R = \frac{P_{end} - P_{start}}{P_{start}}$$
+
+**Intuizione**: "Quanto ho guadagnato (o perso) rispetto all'investimento iniziale?"
+- Se compro a 100€ e vendo a 110€ → R = (110-100)/100 = 0.10 = 10%
+- Facile da capire, ma **non è additivo**: se guadagno +10% poi -10%, non torno a 0
+- Esempio: 100€ +10% = 110€, poi 110€ -10% = 99€ (non 100€!)
 
 *Formula rendimento logaritmico:*
-<!-- Formula + quando usarlo -->
+$$R_{log} = \ln\left(\frac{P_{end}}{P_{start}}\right)$$
+
+**Quando usarlo:**
+- Quando hai una serie temporale lunga e vuoi sommare i rendimenti
+- È **additivo**: ln(110/100) + ln(99/110) = ln(99/100) ✓
+- Più accurato per analisi statistiche (distribuzione normale)
+- Usato nei modelli quantitativi professionali
+
+**Implementazione pratica:**
+```python
+def simple_return(price_start: float, price_end: float) -> float:
+    """R = (P_end - P_start) / P_start"""
+    if price_start <= 0:
+        raise ValueError("price_start deve essere maggiore di zero")
+    return (price_end - price_start) / price_start
+
+def log_return(price_start: float, price_end: float) -> float:
+    """R = ln(P_end / P_start)"""
+    if price_start <= 0 or price_end <= 0:
+        raise ValueError("I prezzi devono essere maggiori di zero")
+    return math.log(price_end / price_start)
+```
 
 *CAGR - intuizione:*
-<!-- Spiega come se lo spiegassi a qualcuno -->
+**Compound Annual Growth Rate** = "Tasso di crescita annuale composto"
+
+$$CAGR = \left(\frac{P_{end}}{P_{start}}\right)^{\frac{1}{years}} - 1$$
+
+**Come spiegarlo a qualcuno:**
+"Se avessi avuto un rendimento costante ogni anno, quale sarebbe stato per arrivare da P_start a P_end?"
+
+Esempio:
+- Investito 10,000€ nel 2020
+- Nel 2025 hai 15,000€
+- CAGR = (15,000/10,000)^(1/5) - 1 = 0.0845 = 8.45% annuo
+- Significa: "È come se avessi guadagnato esattamente 8.45% ogni anno per 5 anni"
+
+**Perché è utile:**
+- Confrontare investimenti con durate diverse
+- "Ho guadagnato 50% in 5 anni" → CAGR ~8.45%/anno
+- "Ho guadagnato 20% in 1 anno" → CAGR 20%/anno → meglio!
 
 ### Volatilità
 *Varianza - formula implementata:*
 ```python
-# Il tuo codice con commenti
+def variance(values: list[float]) -> float:
+    """
+    Calcola la varianza campionaria.
+    
+    Formula: σ² = Σ(x - media)² / (n - 1)
+    """
+    if len(values) < 2:
+        raise ValueError("Serve almeno 2 valori")
+    
+    # Step 1: calcola la media
+    mean = sum(values) / len(values)
+    
+    # Step 2: calcola gli scarti al quadrato
+    squared_diffs = [(x - mean) ** 2 for x in values]
+    
+    # Step 3: dividi per (n-1) non n!
+    variance = sum(squared_diffs) / (len(values) - 1)
+    return variance
+
+def std_dev(values: list[float]) -> float:
+    """Deviazione standard = √varianza"""
+    return math.sqrt(variance(values))
 ```
 
 *Perché (n-1) e non n?*
-<!-- Spiega la differenza sample vs population -->
+**Differenza sample vs population:**
+
+- **Population (n)**: hai TUTTI i dati possibili dell'universo
+  - Esempio: rendimenti di TUTTI gli ETF esistenti
+  - Dividi per n
+  
+- **Sample (n-1)**: hai solo un campione dei dati
+  - Esempio: rendimenti degli ultimi 252 giorni di un ETF
+  - Dividi per (n-1) → **Bessel's correction**
+  - Compensa il bias: il campione tende a sottostimare la varianza vera
+
+**Nel nostro caso:**
+- Usiamo sempre (n-1) perché analizziamo dati storici (un campione)
+- I 252 giorni passati sono un campione, non "tutto il futuro"
 
 *Annualizzazione - perché √252?*
-<!-- Scrivi qui -->
+**Formula annualizzazione volatilità:**
+$$\sigma_{annual} = \sigma_{daily} \times \sqrt{252}$$
+
+**Spiegazione matematica:**
+- La volatilità scala con la **radice quadrata del tempo**
+- Varianza è additiva: Var(total) = Var(day1) + Var(day2) + ...
+- Std dev = √Var, quindi std_annual = √(252 × var_daily) = √252 × std_daily
+
+**Perché 252 e non 365?**
+- 252 = giorni di trading medi in un anno (esclude weekend e festivi)
+- Più accurato per asset finanziari
+- Per crypto (24/7) useresti 365
+
+**Implementazione:**
+```python
+def annualized_volatility(daily_returns: list[float], trading_days: int = 252) -> float:
+    """σ_annual = σ_daily × √252"""
+    daily_vol = std_dev(daily_returns)
+    return daily_vol * math.sqrt(trading_days)
+```
+
+**Esempio pratico:**
+- Volatilità giornaliera = 1.2%
+- Volatilità annualizzata = 1.2% × √252 ≈ 1.2% × 15.87 ≈ 19%
+- Significa: "Mi aspetto oscillazioni annuali del ±19%"
 
 ---
 
