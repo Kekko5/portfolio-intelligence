@@ -316,27 +316,80 @@ def annualized_volatility(daily_returns: list[float], trading_days: int = 252) -
 
 ### Correlazione
 *Covarianza - intuizione:*
-<!-- Scrivi qui -->
+La covarianza misura se due serie si muovono **insieme** o in modo opposto.
+
+- Se i rendimenti di due asset crescono e calano insieme → covarianza **positiva**
+- Se uno sale quando l'altro scende → covarianza **negativa**
+- Se non c'è relazione → covarianza ~ 0
+
+Formula (campionaria):
+$$\text{cov}(x,y) = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{n-1}$$
+
+**Intuizione pratica:**
+"Quanto spesso i due asset si allontanano dalla loro media nella stessa direzione?"
 
 *Pearson correlation - range e interpretazione:*
-<!-- Scrivi qui -->
+La correlazione di Pearson **normalizza** la covarianza, rendendola comparabile tra asset.
+
+$$\rho_{x,y} = \frac{\text{cov}(x,y)}{\sigma_x \cdot \sigma_y}$$
+
+**Range:** da **-1** a **+1**
+- **+1** → perfettamente correlati (si muovono insieme)
+- **0** → non correlati
+- **-1** → perfettamente inversi
+
+**Perché è utile:**
+- Diversificazione: asset con bassa correlazione riducono il rischio complessivo
+- Se correlazione ≈ 1 → portafoglio poco diversificato
+
+**Implementazione nel codice:**
+```python
+def pearson_correlation(x: list[float], y: list[float]) -> float:
+    cov = covariance(x, y)
+    std_x = std_dev(x)
+    std_y = std_dev(y)
+    return cov / (std_x * std_y)
+```
 
 ### Sharpe Ratio
 *Formula:*
-<!-- Scrivi qui -->
+$$\text{Sharpe} = \frac{R_{medio} - R_{risk\_free}}{\sigma}$$
+
+**Significato:**
+"Quanto rendimento extra ottengo per ogni unità di rischio?"
 
 *Interpretazione valori:*
-<!-- < 1, 1-2, > 2 cosa significano -->
+- **< 1** → rischio elevato per il rendimento (poco interessante)
+- **1 - 2** → buono
+- **> 2** → eccellente (rendimento alto rispetto al rischio)
+
+**Nota:** lo Sharpe è più affidabile su serie lunghe e rendimenti coerenti.
 
 ### SOLID Principles
 *S - Single Responsibility:*
-<!-- Esempio dal tuo codice -->
+Ogni modulo ha una sola responsabilità:
+- `src/domain/metrics/returns.py` calcola **solo rendimenti**
+- `src/domain/metrics/volatility.py` calcola **solo volatilità**
+- `src/data/fetchers/yahoo_fetcher.py` gestisce **solo il fetch dati**
+
+Risultato: codice più chiaro e testabile.
 
 *O - Open/Closed:*
-<!-- Esempio dal tuo codice -->
+Il codice è **aperto all'estensione** ma **chiuso alla modifica**.
+
+Esempio:
+- Posso aggiungere nuove metriche (es. `sortino_ratio`) creando un nuovo file in `metrics/`
+- Non devo modificare le funzioni esistenti, solo aggiungere nuove
+
+Inoltre, posso aggiungere un nuovo fetcher (es. `alpha_vantage_fetcher.py`) senza toccare la logica di dominio.
 
 *D - Dependency Inversion:*
-<!-- Esempio dal tuo codice -->
+Il dominio non dipende da implementazioni concrete ma da **astrazioni**.
+
+Esempio:
+- In `src/data/fetchers/base.py` ci sono i `Protocol` (`PriceFetcher`, `AssetInfoFetcher`)
+- Le parti alte del sistema possono dipendere da queste interfacce
+- Questo permette di sostituire il fetcher Yahoo con un mock o un altro provider senza cambiare il dominio
 
 ---
 
