@@ -397,14 +397,83 @@ Esempio:
 
 ### Service Layer Pattern
 *Perché separare domain da application:*
-<!-- Scrivi qui -->
+Il **domain layer** contiene la logica pura (calcoli, formule) senza sapere da dove arrivano i dati.
+Il **application layer** (service) **coordina** il flusso: fetch dati → trasformazione → analisi → output.
+
+**Vantaggi della separazione:**
+- Il domain è **testabile** senza rete, senza mock, con semplici liste di numeri
+- Il service è il punto di ingresso unico: nasconde la complessità al chiamante
+- Posso cambiare la sorgente dati (Yahoo → API diversa) senza toccare il domain
+
+**Struttura nel progetto:**
+```
+domain/                        ← Logica pura (no dipendenze esterne)
+├── metrics/                   ← Calcoli: returns, volatility, correlation, ratios
+└── analysis/portfolio_analyzer.py  ← Orchestrazione metriche
+
+application/                   ← Coordinamento (dipende da data + domain)
+└── services/analysis_service.py    ← Fetch → Analisi → Report
+```
+
+**Il flow di `AnalysisService.analyze_portfolio()`:**
+```python
+# 1. Converti period → years
+years = self._period_to_years(period)  # "1y" → 1.0, "6mo" → 0.5
+
+# 2. Fetch dati e estrai prezzi di chiusura
+for asset in portfolio.assets:
+    price_data = self.fetcher.fetch_prices(asset.ticker, period)
+    close_prices = [price.close for price in price_data]
+
+# 3. Delega l'analisi al domain layer
+result = self.analyzer.analyze_portfolio(assets_data, weights, years)
+
+# 4. Impacchetta il risultato in un PortfolioReport
+return PortfolioReport(...)
+```
+
+**Lezione chiave:** il service non calcola nulla direttamente, **coordina e delega**.
 
 ### Portfolio Metrics
 *Rendimento pesato - formula:*
-<!-- Scrivi qui -->
+Il rendimento del portafoglio è la **media pesata** dei rendimenti individuali:
+
+$$R_{portfolio} = \sum_{i=1}^{n} w_i \cdot R_i$$
+
+Dove $w_i$ è il peso dell'asset $i$ e $R_i$ il suo rendimento.
+
+**Esempio:**
+- VWCE (60%): rendimento +12% → contributo = 0.60 × 0.12 = 0.072
+- AGGH (40%): rendimento +3% → contributo = 0.40 × 0.03 = 0.012
+- Rendimento portafoglio = 0.072 + 0.012 = 0.084 = **8.4%**
+
+Lo stesso principio si applica al CAGR del portafoglio.
 
 *Volatilità portafoglio - perché non è la media delle volatilità:*
-<!-- Scrivi qui, è importante! -->
+**Questo è un concetto fondamentale!**
+
+La volatilità del portafoglio **NON** è la media pesata delle volatilità individuali.
+La formula corretta include le **correlazioni** tra gli asset:
+
+$$\sigma_p = \sqrt{\sum_{i}\sum_{j} w_i \cdot w_j \cdot \sigma_i \cdot \sigma_j \cdot \rho_{ij}}$$
+
+**Perché?**
+- Se due asset sono **poco correlati** ($\rho \approx 0$), la volatilità del portafoglio è **inferiore** alla media pesata
+- Questo è il principio della **diversificazione**: combinare asset non correlati riduce il rischio
+- È il motivo per cui un portafoglio 60/40 (azioni/obbligazioni) ha rischio minore di quanto ci si aspetterebbe
+
+**Nel nostro codice (semplificato):**
+```python
+# Approssimazione: media pesata delle volatilità
+portfolio_volatility = sum(
+    asset_analyses[ticker].volatility * weights[ticker]
+    for ticker in assets_data.keys()
+)
+# Nota: questa è una SOVRASTIMA del rischio reale
+# La versione corretta richiederebbe la matrice di correlazione
+```
+
+**Lezione:** la media pesata è un'approssimazione che **sovrastima** il rischio. È conservativa ma non precisa. Un miglioramento futuro sarà usare la formula completa con le correlazioni.
 
 ---
 
