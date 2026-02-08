@@ -1,0 +1,18 @@
+# Il mio portafoglio reale
+name: "Francesco Portfolio"
+
+assets:
+  - ticker: "IUSA.MI"
+    name: "iShares Core S&P 500"
+    type: "ETF"
+    weight: 0.42
+
+  - ticker: "MSE.MI"
+    name: "Amundi EURO STOXX 50"
+    type: "ETF"
+    weight: 0.22
+
+  - ticker: "SWDA.MI"
+    name: "iShares Core MSCI World"
+    type: "ETF"
+    weight: 0.36

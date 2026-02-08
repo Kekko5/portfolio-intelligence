@@ -5,11 +5,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from typing import Optional
+from pathlib import Path
 
-from src.data.models.asset import Asset
-from src.data.models.portfolio import Portfolio
 from src.application.services.analysis_service import AnalysisService
+from src.presentation.cli.config_loader import load_portfolio
 
 # Inizializza Typer e Rich
 app = typer.Typer(help="Portfolio Intelligence - Analizza il tuo portafoglio")
@@ -19,19 +18,24 @@ console = Console()
 @app.command()
 def analyze(
     period: str = typer.Option("1y", "--period", "-p", help="Periodo di analisi (es. 3mo, 1y, 2y)"),
+    config: str = typer.Option("config/portfolio.yaml", "--config", "-c", help="File di configurazione"),
     no_ai: bool = typer.Option(False, "--no-ai", help="Disabilita insight AI"),
+    export: str = typer.Option(None, "--export", "-e", help="Esporta report in Markdown"),
 ):
     """
     Analizza il portafoglio e mostra le metriche.
     """
     console.print("\n[bold blue]📊 Portfolio Intelligence[/bold blue]\n")
     
-    # Portfolio di esempio (dopo lo caricheremo da YAML)
-    assets = [
-        Asset(ticker="VWCE.MI", name="Vanguard All-World", asset_type="ETF", weight=0.6),
-        Asset(ticker="AGGH.MI", name="iShares Global Bond", asset_type="ETF", weight=0.4),
-    ]
-    portfolio = Portfolio(name="My Portfolio", assets=assets)
+    # Carica portfolio da YAML
+    try:
+        portfolio = load_portfolio(config)
+    except FileNotFoundError:
+        console.print(f"[red]Errore: File non trovato: {config}[/red]")
+        raise typer.Exit(1)
+    except ValueError as e:
+        console.print(f"[red]Errore configurazione: {e}[/red]")
+        raise typer.Exit(1)
     
     # Analizza
     with console.status("[bold green]Recupero dati e calcolo metriche..."):
@@ -48,6 +52,10 @@ def analyze(
     
     if report.ai_insight and not no_ai:
         _print_ai_insight(report)
+    
+    # Export se richiesto
+    if export:
+        _export_markdown(report, export)
     
     console.print("\n[dim]Analisi completata.[/dim]\n")
 
@@ -75,7 +83,6 @@ def _print_assets_table(report):
     table.add_column("Max DD", justify="right")
     
     for ticker, analysis in report.assets.items():
-        # Colora in base al valore
         ret_color = "green" if analysis.total_return >= 0 else "red"
         sharpe_color = "green" if analysis.sharpe_ratio >= 1 else "yellow" if analysis.sharpe_ratio >= 0 else "red"
         
@@ -97,6 +104,37 @@ def _print_ai_insight(report):
         title="🤖 AI Insight",
         border_style="green"
     ))
+
+
+def _export_markdown(report, filepath: str):
+    """Esporta il report in Markdown."""
+    md_content = f"""# Report Portafoglio: {report.portfolio_name}
+
+**Data analisi:** {report.analysis_date.strftime('%Y-%m-%d %H:%M')}
+**Periodo:** {report.period}
+
+## Riepilogo
+
+| Metrica | Valore |
+|---------|--------|
+| Rendimento | {report.portfolio_return:+.2%} |
+| CAGR | {report.portfolio_cagr:+.2%} |
+| Volatilità | {report.portfolio_volatility:.2%} |
+
+## Dettaglio Asset
+
+| Ticker | Rendimento | Volatilità | Sharpe | Max DD |
+|--------|------------|------------|--------|--------|
+"""
+    
+    for ticker, analysis in report.assets.items():
+        md_content += f"| {ticker} | {analysis.total_return:+.2%} | {analysis.volatility:.2%} | {analysis.sharpe_ratio:.2f} | {analysis.max_drawdown:.2%} |\n"
+    
+    if report.ai_insight:
+        md_content += f"\n## AI Insight\n\n{report.ai_insight.full_analysis}\n"
+    
+    Path(filepath).write_text(md_content)
+    console.print(f"\n[green]✅ Report esportato in: {filepath}[/green]")
 
 
 if __name__ == "__main__":
