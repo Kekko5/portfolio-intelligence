@@ -481,22 +481,82 @@ portfolio_volatility = sum(
 
 ### Prompt Engineering
 *Cosa funziona bene:*
-<!-- Pattern che hai scoperto -->
+1. **System prompt con ruolo chiaro**: definire "Sei un analista finanziario esperto" dà un tono coerente
+2. **Linee guida esplicite**: dire cosa fare E cosa non fare (es. "Non dare consigli specifici di acquisto")
+3. **Formato risposta strutturato**: chiedere riassunto → punti chiave → suggerimenti mantiene le risposte organizzate
+4. **Dati formattati nel prompt**: passare i numeri con `:.2%` li rende leggibili per l'AI
+5. **Template con placeholders**: usare `PORTFOLIO_ANALYSIS_TEMPLATE.format(...)` rende il prompt riproducibile
+
+```python
+# Template con placeholders chiari
+PORTFOLIO_ANALYSIS_TEMPLATE = """Analizza questo portafoglio:
+**Nome portafoglio:** {portfolio_name}
+**Metriche aggregate:**
+- Rendimento totale: {total_return:.2%}
+- CAGR: {cagr:.2%}
+...
+"""
+```
 
 *Cosa non funziona:*
-<!-- Errori da evitare -->
+- **Prompt troppo vaghi**: "analizza questo" → risposte generiche e poco utili
+- **Troppo contesto**: sovraccaricare con dati non necessari confonde il modello
+- **Nessun vincolo sul formato**: senza "Formato risposta:" l'output è imprevedibile
+- **Chiedere previsioni**: l'AI non prevede il futuro, meglio chiedere analisi di dati storici
 
 *System prompt finale:*
 ```
-<!-- Il tuo prompt ottimizzato -->
+Sei un analista finanziario esperto e consulente per investitori individuali.
+
+Linee guida:
+- Usa linguaggio semplice, evita gergo non necessario
+- Sii conciso ma completo
+- Evidenzia aspetti positivi E aree di miglioramento
+- Non dare consigli specifici ("compra X"), suggerisci considerazioni
+- Contestualizza i numeri (es. "volatilità 15% è nella media per azionario")
+- Segnala rischi con chiarezza ma senza allarmismo
+
+Formato: riassunto 1-2 frasi → punti chiave → 1-2 suggerimenti pratici
 ```
 
 ### API Best Practices
 *Rate limiting:*
-<!-- Come lo gestisci -->
+Per ora non è un problema (uso singolo), ma le best practices applicate:
+- L'`AIClient` è opzionale (`ai_client: AIClient = None`) → il sistema funziona anche senza AI
+- L'insight viene generato una sola volta per report, non per asset
+- Il parametro `include_ai_insight=True` permette di disattivarlo per test o batch
 
 *Error handling:*
-<!-- Pattern usato -->
+Pattern **graceful degradation**: se l'AI fallisce, il report esce comunque senza insight.
+
+```python
+def _generate_ai_insight(self, report: PortfolioReport) -> AIInsight | None:
+    """Genera insight AI — restituisce None se fallisce."""
+    if not self.ai_client:
+        try:
+            self.ai_client = AIClient()
+        except ValueError:
+            return None  # API key mancante → nessun insight
+    
+    try:
+        prompt = format_portfolio_prompt(report)
+        analysis = self.ai_client.ask(prompt, system_prompt=SYSTEM_PROMPT)
+        first_sentence = analysis.split('.')[0] + '.'
+        return AIInsight(
+            summary=first_sentence,
+            full_analysis=analysis,
+            generated_at=datetime.now()
+        )
+    except Exception:
+        return None  # Errore rete/API → nessun insight, nessun crash
+```
+
+**Pattern chiave:**
+1. **Lazy initialization**: `AIClient` viene creato solo quando serve
+2. **Optional dependency**: il campo `ai_insight: AIInsight | None = None` nel report
+3. **No crash**: doppio try/except → il report numerico esce sempre
+4. **Secrets via `.env`**: `ANTHROPIC_API_KEY` in `.env`, mai nel codice
+5. **Separazione prompt/codice**: i prompt vivono in `config/prompts/`, non nel service
 
 ---
 
