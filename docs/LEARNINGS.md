@@ -564,11 +564,77 @@ def _generate_ai_insight(self, report: PortfolioReport) -> AIInsight | None:
 
 ### Typer
 *Pattern utili:*
-<!-- Scrivi qui -->
+**Typer** è un framework CLI moderno, basato su type hints Python (dallo stesso autore di FastAPI).
+
+**Vantaggi rispetto ad argparse:**
+- Zero boilerplate: i type hints diventano automaticamente argomenti CLI
+- Help auto-generato
+- Validazione automatica dei tipi
+
+**Pattern usati nel progetto:**
+```python
+import typer
+
+app = typer.Typer(help="Portfolio Intelligence - Analizza il tuo portafoglio")
+
+@app.command()
+def analyze(
+    period: str = typer.Option("1y", "--period", "-p", help="Periodo di analisi"),
+    config: str = typer.Option("config/portfolio.yaml", "--config", "-c", help="File config"),
+    no_ai: bool = typer.Option(False, "--no-ai", help="Disabilita insight AI"),
+    export: str = typer.Option(None, "--export", "-e", help="Esporta report in Markdown"),
+):
+    ...
+```
+
+**Cose imparate:**
+- `typer.Option(default, "--flag", help=...)` per opzioni con valore
+- `typer.Option(False, "--no-ai")` per flag booleani
+- `typer.Exit(1)` per uscire con codice errore
+- Il decorator `@app.command()` registra la funzione come comando
 
 ### Rich
 *Formattazione che uso:*
-<!-- Scrivi qui -->
+**Rich** rende il terminale bello e leggibile con zero sforzo.
+
+**Componenti utilizzati:**
+1. **Console**: output formattato con colori
+   ```python
+   console = Console()
+   console.print("[bold blue]📊 Portfolio Intelligence[/bold blue]")
+   ```
+
+2. **Table**: tabelle professionali per i dati degli asset
+   ```python
+   table = Table(title="Dettaglio Asset")
+   table.add_column("Ticker", style="cyan")
+   table.add_column("Rendimento", justify="right")
+   table.add_row("VWCE.MI", "[green]+12.5%[/green]")
+   ```
+
+3. **Panel**: box con bordo per riepilogo e AI insight
+   ```python
+   console.print(Panel(summary, title="Riepilogo", border_style="blue"))
+   ```
+
+4. **Status**: spinner durante operazioni lunghe
+   ```python
+   with console.status("[bold green]Recupero dati e calcolo metriche..."):
+       report = service.analyze_portfolio(...)
+   ```
+
+**Colori semantici usati:**
+- 🟢 `[green]` → rendimenti positivi, successo
+- 🔴 `[red]` → rendimenti negativi, errori, drawdown
+- 🟡 `[yellow]` → volatilità, Sharpe mediocre
+- 🔵 `[blue]` → titoli, bordi panel
+- `[cyan]` → ticker
+- `[dim]` → testo secondario
+
+**Export Markdown:**
+Il report viene anche esportato in `.md` con `--export report.md`, riciclando gli stessi dati del `PortfolioReport` ma formattati come tabelle Markdown standard.
+
+**Lezione chiave:** separare la logica di presentazione (`presentation/cli/`) dalla logica di business (`application/`, `domain/`) rende facile aggiungere altri formati (HTML, PDF, API) senza toccare il core.
 
 ---
 
